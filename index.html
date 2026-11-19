@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WeatherPulse | Real-Time Weather Dashboard</title>
+  <meta name="description" content="A dynamic, real-time weather dashboard fetching live JSON data via asynchronous JavaScript and RESTful APIs." />
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="background-decorations" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-cloud-sun-rain"></i>
+        </div>
+        <div class="brand-text">
+          <h1>WeatherPulse</h1>
+          <p class="tagline">Asynchronous REST API Weather Intelligence</p>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Unit Toggle -->
+        <div class="unit-toggle" id="unitToggleContainer" role="group" aria-label="Temperature unit selection">
+          <button type="button" class="unit-btn active" id="unitCelsius" data-unit="celsius" title="Celsius (°C)">°C</button>
+          <button type="button" class="unit-btn" id="unitFahrenheit" data-unit="fahrenheit" title="Fahrenheit (°F)">°F</button>
+        </div>
+
+        <!-- Geolocation Button -->
+        <button type="button" class="icon-btn" id="geoBtn" title="Use current location" aria-label="Use my current GPS location">
+          <i class="fa-solid fa-location-crosshairs"></i>
+          <span class="btn-text">My Location</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Section -->
+    <section class="search-section" aria-label="City search section">
+      <form id="searchForm" class="search-form" novalidate>
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input 
+            type="text" 
+            id="cityInput" 
+            name="city" 
+            placeholder="Search city (e.g., Tokyo, London, New York, Mumbai)..." 
+            autocomplete="off" 
+            spellcheck="false" 
+            required 
+            aria-label="City name"
+          />
+          <button type="button" id="clearSearchBtn" class="clear-btn" aria-label="Clear input" style="display: none;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <button type="submit" id="searchSubmitBtn" class="btn-primary">
+          <i class="fa-solid fa-arrow-right"></i>
+          <span>Search</span>
+        </button>
+      </form>
+
+      <!-- Quick City Chips & Recent Searches -->
+      <div class="quick-chips-wrapper">
+        <span class="chips-label"><i class="fa-solid fa-bolt"></i> Quick Pick:</span>
+        <div class="chips-list" id="quickChipsList">
+          <button type="button" class="chip" data-city="London">London</button>
+          <button type="button" class="chip" data-city="New York">New York</button>
+          <button type="button" class="chip" data-city="Tokyo">Tokyo</button>
+          <button type="button" class="chip" data-city="Paris">Paris</button>
+          <button type="button" class="chip" data-city="Dubai">Dubai</button>
+          <button type="button" class="chip" data-city="Sydney">Sydney</button>
+        </div>
+      </div>
+
+      <!-- Recent Searches (Dynamic) -->
+      <div class="recent-searches-wrapper" id="recentSearchesWrapper" style="display: none;">
+        <span class="chips-label"><i class="fa-solid fa-clock-rotate-left"></i> Recent:</span>
+        <div class="chips-list" id="recentSearchesList"></div>
+      </div>
+    </section>
+
+    <!-- Feedback States: Loading & Error Alerts -->
+    <div id="statusRegion" aria-live="polite">
+      <!-- Loading Indicator -->
+      <div id="loadingIndicator" class="loading-container" style="display: none;">
+        <div class="spinner"></div>
+        <p class="loading-text">Fetching latest weather data via REST API...</p>
+      </div>
+
+      <!-- Error Banner -->
+      <div id="errorAlert" class="error-banner" style="display: none;" role="alert">
+        <div class="error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+        <div class="error-content">
+          <h4 id="errorTitle">Request Failed</h4>
+          <p id="errorMessage">Unable to retrieve weather data.</p>
+        </div>
+        <button type="button" id="dismissErrorBtn" class="dismiss-btn" aria-label="Dismiss error">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Weather Dashboard Content -->
+    <main id="dashboardContent" class="dashboard-content" style="display: none;">
+      
+      <!-- Top Row: Hero Overview Card -->
+      <section class="hero-weather-card" id="heroCard">
+        <div class="hero-left">
+          <div class="location-badge">
+            <i class="fa-solid fa-location-dot"></i>
+            <span id="locationName">London</span><span id="countryCode">, GB</span>
+          </div>
+          <p class="date-time-display" id="localTimeDisplay">Thursday, Nov 19, 2026 • 09:30 AM</p>
+          
+          <div class="temperature-row">
+            <h2 class="main-temperature" id="currentTemp">12°</h2>
+            <div class="temp-meta">
+              <span class="condition-badge" id="weatherCondition">Partly Cloudy</span>
+              <span class="feels-like-text">Feels like <strong id="feelsLikeTemp">10°</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-right">
+          <div class="weather-art" id="weatherIconWrapper">
+            <i class="fa-solid fa-cloud-sun weather-icon" id="mainWeatherIcon"></i>
+          </div>
+          <div class="hero-min-max">
+            <span><i class="fa-solid fa-arrow-up"></i> High: <strong id="heroTempMax">15°</strong></span>
+            <span><i class="fa-solid fa-arrow-down"></i> Low: <strong id="heroTempMin">7°</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Weather Metrics Grid (Temperature, Humidity, Wind Speed + extra nested JSON data) -->
+      <section class="metrics-section" aria-label="Detailed Weather Metrics">
+        <h3 class="section-title"><i class="fa-solid fa-chart-simple"></i> Live Weather Metrics</h3>
+        
+        <div class="metrics-grid">
+          <!-- Metric 1: Humidity (Key Requirement) -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Humidity</span>
+              <div class="metric-icon-box humidity-color">
+                <i class="fa-solid fa-droplet"></i>
+              </div>
+            </div>
+            <div class="metric-value-container">
+              <span class="metric-value" id="humidityValue">78</span>
+              <span class="metric-unit">%</span>
+            </div>
+            <div class="metric-footer">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="humidityProgress" style="width: 78%;"></div>
+              </div>
+              <span class="metric-subtext" id="humidityQuality">Comfortable humidity level</span>
+            </div>
+          </div>
+
+          <!-- Metric 2: Wind Speed & Direction (Key Requirement) -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Wind Speed</span>
+              <div class="metric-icon-box wind-color">
+                <i class="fa-solid fa-wind"></i>
+              </div>
+            </div>
+            <div class="metric-value-container">
+              <span class="metric-value" id="windSpeedValue">18.5</span>
+              <span class="metric-unit" id="windSpeedUnit">km/h</span>
+            </div>
+            <div class="metric-footer">
+              <div class="wind-direction-info">
+                <i class="fa-solid fa-compass" id="windCompassIcon"></i>
+                <span class="metric-subtext" id="windDirectionText">SW (220°)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Metric 3: Air Pressure -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Air Pressure</span>
+              <div class="metric-icon-box pressure-color">
+                <i class="fa-solid fa-gauge-high"></i>
+              </div>
+            </div>
+            <div class="metric-value-container">
+              <span class="metric-value" id="pressureValue">1016</span>
+              <span class="metric-unit">hPa</span>
+            </div>
+            <div class="metric-footer">
+              <span class="metric-subtext" id="pressureStatus">Normal atmospheric pressure</span>
+            </div>
+          </div>
+
+          <!-- Metric 4: Precipitation -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Precipitation</span>
+              <div class="metric-icon-box rain-color">
+                <i class="fa-solid fa-cloud-showers-heavy"></i>
+              </div>
+            </div>
+            <div class="metric-value-container">
+              <span class="metric-value" id="precipitationValue">0.0</span>
+              <span class="metric-unit" id="precipitationUnit">mm</span>
+            </div>
+            <div class="metric-footer">
+              <span class="metric-subtext" id="precipitationSubtext">No rain expected right now</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5-Day Forecast Row (Nested JSON arrays rendering) -->
+      <section class="forecast-section" aria-label="Daily Forecast">
+        <div class="forecast-header">
+          <h3 class="section-title"><i class="fa-solid fa-calendar-days"></i> 5-Day Outlook</h3>
+          <span class="forecast-subtitle">Parsed from nested daily API forecast array</span>
+        </div>
+        <div class="forecast-cards-container" id="forecastCardsContainer">
+          <!-- Dynamically populated via JS -->
+        </div>
+      </section>
+
+      <!-- JSON REST API Inspector (Educational value for assignment review) -->
+      <section class="api-inspector-section">
+        <details class="api-details">
+          <summary class="api-summary">
+            <span><i class="fa-solid fa-code"></i> Inspect Raw REST API JSON Response</span>
+            <span class="badge-tag">Asynchronous Payload</span>
+          </summary>
+          <div class="raw-json-container">
+            <div class="json-header">
+              <span id="apiEndpointUrl" class="endpoint-url">https://api.open-meteo.com/v1/forecast?...</span>
+              <button type="button" id="copyJsonBtn" class="copy-btn"><i class="fa-regular fa-copy"></i> Copy JSON</button>
+            </div>
+            <pre><code id="rawJsonDisplay">// Raw API response will be populated here</code></pre>
+          </div>
+        </details>
+      </section>
+
+    </main>
+
+    <!-- Empty / Initial Placeholder State -->
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon-wrapper">
+        <i class="fa-solid fa-earth-americas"></i>
+      </div>
+      <h2>Ready to Explore Live Weather</h2>
+      <p>Enter any city name above or click one of the quick picks to test the asynchronous REST API fetch pipeline.</p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Built with <strong>Asynchronous JavaScript</strong> (<code>async/await</code>, <code>fetch()</code>, <code>try/catch</code>) & RESTful APIs.</p>
+      <p class="data-attribution">Data powered by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo REST API</a> (Free, Open, No-Key Required).</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
